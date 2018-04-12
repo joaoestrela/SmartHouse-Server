@@ -4,9 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -15,10 +17,12 @@ import (
 )
 
 const (
-	iterations = 4096
-	keyLength  = 64
-	bucket     = "auth"
-	storage    = "auth.db"
+	iterations        = 4096
+	keyLength         = 64
+	authBucket        = "auth"
+	sessionBucket     = "sessions"
+	storage           = "auth.db"
+	expirationSeconds = 60 * 60 * 24 // 1 day
 )
 
 func main() {
@@ -29,7 +33,8 @@ func main() {
 	pw := "p4$$w0rd"
 
 	Register(db, user, pw)
-	Login(db, user, pw)
+	t := Login(db, user, pw)
+	fmt.Println(t)
 }
 
 // TODO: Move error handling to responsewriter
@@ -38,11 +43,11 @@ func Register(db *bolt.DB, user, pw string) {
 	if err != nil {
 		log.Fatalf("failed to generate uuid: %v", err)
 	}
-	token := hash(pw, salt)
+	key := hash(pw, salt)
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		buf, err := json.Marshal(credentials{Token: token, Salt: salt})
+		b := tx.Bucket([]byte(authBucket))
+		buf, err := json.Marshal(credential{Key: key, Salt: salt})
 		if err != nil {
 			log.Fatalf("failed to marshal: %v", err)
 		}
@@ -57,11 +62,11 @@ func Register(db *bolt.DB, user, pw string) {
 }
 
 // TODO: Move error handling to responsewriter
-func Login(db *bolt.DB, user, pw string) {
-	var creds credentials
+func Login(db *bolt.DB, user, pw string) (token string) {
+	var creds credential
 
 	err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
+		b := tx.Bucket([]byte(authBucket))
 		value := b.Get([]byte(user))
 		if value == nil {
 			log.Fatalf("unregistered user: %s", user)
@@ -73,12 +78,17 @@ func Login(db *bolt.DB, user, pw string) {
 		log.Fatalf("failed to get: %v", err)
 	}
 
-	h := hash(pw, creds.Salt)
-	if h != creds.Token {
+	key := hash(pw, creds.Salt)
+	if key != creds.Key {
 		log.Fatalf("incorrect password")
 	}
 
-	fmt.Println("OK")
+	token, err = newSession(db)
+	if err != nil {
+		log.Fatalf("failed to generate token: %v", err)
+	}
+
+	return token
 }
 
 func buildDB() *bolt.DB {
@@ -93,7 +103,8 @@ func buildDB() *bolt.DB {
 	}
 
 	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(bucket))
+		_, err := tx.CreateBucketIfNotExists([]byte(authBucket))
+		_, err = tx.CreateBucketIfNotExists([]byte(sessionBucket))
 		if err != nil {
 			log.Fatalf("failed to create bucket: %v", err)
 		}
@@ -109,7 +120,41 @@ func hash(pw, salt string) string {
 
 }
 
-type credentials struct {
-	Token string
-	Salt  string
+// newSession persists and returns a new session token
+func newSession(db *bolt.DB) (token string, err error) {
+	invalid := true
+	for invalid {
+		uuid, err := uuid.GenerateUUID()
+		if err != nil {
+			return "", fmt.Errorf("failed to generate uuid: %v", err)
+		}
+
+		err = db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(sessionBucket))
+			v := b.Get([]byte(token))
+			if len(v) != 0 {
+				return errors.New("token exists")
+			}
+
+			time := strconv.FormatInt(time.Now().Unix(), 10)
+			err = b.Put([]byte(uuid), []byte(time))
+			return err
+		})
+		if err == nil {
+			token = uuid
+			invalid = false
+		}
+	}
+
+	return token, nil
+}
+
+type credential struct {
+	Key  string
+	Salt string
+}
+
+type session struct {
+	Token   string
+	Created int64
 }
