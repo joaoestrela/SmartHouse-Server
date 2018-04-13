@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/boltdb/bolt"
 )
 
 func setup(t *testing.T) (string, func()) {
@@ -24,27 +22,13 @@ func setup(t *testing.T) (string, func()) {
 	return filepath.Join(dir, testdb), teardown
 }
 
-func TestBuildDB(t *testing.T) {
+func TestNewDB(t *testing.T) {
 	testdb, teardown := setup(t)
 	defer teardown()
 
-	db := NewDB(testdb)
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(authBucket))
-		if err.Error() != "bucket already exists" {
-			t.Fatalf("bucket '%s' not created", authBucket)
-		}
+	_ = NewDB(testdb)
 
-		_, err = tx.CreateBucket([]byte(sessionBucket))
-		if err.Error() != "bucket already exists" {
-			t.Fatalf("bucket '%s' not created", sessionBucket)
-		}
-
-		b := tx.Bucket([]byte(authBucket))
-		err = b.Put([]byte("user"), []byte("password"))
-		if err != nil && err.Error() == "database not open" {
-			t.Fatal(err)
-		}
-		return nil
-	})
+	if _, err := os.Stat(testdb); os.IsNotExist(err) {
+		t.Fatalf("failed to create db: %v", err)
+	}
 }

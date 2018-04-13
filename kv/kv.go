@@ -24,7 +24,7 @@ type Storage struct {
 	*bolt.DB
 }
 
-func NewDB(file string) *Storage {
+func NewDB(file string) Storer {
 	// Start fresh every time for now
 	err := os.RemoveAll(file)
 	if err != nil {
@@ -67,6 +67,15 @@ func (s *Storage) GetUser(user []byte) []byte {
 	return creds
 }
 
+func (s *Storage) PutSession(token, created []byte) error {
+	err := s.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(sessionBucket))
+		err := b.Put(token, created)
+		return err
+	})
+	return err
+}
+
 func (s *Storage) GetSession(token []byte) []byte {
 	var created []byte
 	_ = s.View(func(tx *bolt.Tx) error {
@@ -75,13 +84,4 @@ func (s *Storage) GetSession(token []byte) []byte {
 		return nil
 	})
 	return created
-}
-
-func (s *Storage) PutSession(token, created []byte) error {
-	err := s.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(sessionBucket))
-		err := b.Put(token, created)
-		return err
-	})
-	return err
 }
