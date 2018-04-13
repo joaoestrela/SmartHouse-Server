@@ -1,24 +1,32 @@
 package main
 
 import (
-	"log"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/boltdb/bolt"
 )
 
-const testFile = "test.db"
+func setup(t *testing.T) (string, func()) {
+	t.Parallel()
 
-func tearDown() {
-	err := os.RemoveAll(testFile)
+	const testdb = "test.db"
+
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
-		log.Fatalf("failed to delete existing db: %v", err)
+		t.Fatalf("failed to create temp dir: %v", err)
 	}
+
+	teardown := func() { os.RemoveAll(dir) }
+
+	return filepath.Join(dir, testdb), teardown
 }
 
 func TestBuildDB(t *testing.T) {
-	db := buildDB(testFile)
+	testdb, teardown := setup(t)
+	db := buildDB(testdb)
 
 	db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket([]byte(authBucket))
@@ -38,11 +46,13 @@ func TestBuildDB(t *testing.T) {
 		}
 		return nil
 	})
-	tearDown()
+	teardown()
 }
 
 func TestEndToEnd(t *testing.T) {
-	db := buildDB(testFile)
+	testdb, teardown := setup(t)
+	db := buildDB(testdb)
+
 	user := "Bob"
 	pw := "password"
 
@@ -81,5 +91,5 @@ func TestEndToEnd(t *testing.T) {
 			}
 		})
 	}
-	tearDown()
+	teardown()
 }
