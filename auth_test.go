@@ -1,12 +1,21 @@
 package main
 
 import (
+	"log"
+	"os"
 	"testing"
 
 	"github.com/boltdb/bolt"
 )
 
 const testFile = "test.db"
+
+func tearDown() {
+	err := os.RemoveAll(testFile)
+	if err != nil {
+		log.Fatalf("failed to delete existing db: %v", err)
+	}
+}
 
 func TestBuildDB(t *testing.T) {
 	db := buildDB(testFile)
@@ -29,6 +38,7 @@ func TestBuildDB(t *testing.T) {
 		}
 		return nil
 	})
+	tearDown()
 }
 
 func TestEndToEnd(t *testing.T) {
@@ -71,4 +81,5 @@ func TestEndToEnd(t *testing.T) {
 			}
 		})
 	}
+	tearDown()
 }
