@@ -26,14 +26,17 @@ const (
 )
 
 func main() {
-	db := buildDB()
+	db := buildDB(storage)
 	defer db.Close()
 
 	user := "Bob"
 	pw := "p4$$w0rd"
 
 	Register(db, user, pw)
-	t := Login(db, user, pw)
+	t, err := Authenticate(db, user, pw)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(t)
 }
 
@@ -58,46 +61,46 @@ func Register(db *bolt.DB, user, pw string) {
 	if err != nil {
 		log.Fatalf("failed to put new user: %v", err)
 	}
-	fmt.Println("OK")
 }
 
 // TODO: Move error handling to responsewriter
-func Login(db *bolt.DB, user, pw string) (token string) {
+func Authenticate(db *bolt.DB, user, pw string) (token string, err error) {
 	var creds credential
 
-	err := db.View(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
 		value := b.Get([]byte(user))
 		if value == nil {
-			log.Fatalf("unregistered user: %s", user)
+			return fmt.Errorf("unregistered user: %s", user)
 		}
 		err := json.Unmarshal(value, &creds)
 		return err
 	})
 	if err != nil {
-		log.Fatalf("failed to get: %v", err)
+		return "", fmt.Errorf("failed to get: %v", err)
 	}
 
 	key := hash(pw, creds.Salt)
 	if key != creds.Key {
-		log.Fatalf("incorrect password")
+		return "", fmt.Errorf("incorrect password")
 	}
 
 	token, err = newSession(db)
 	if err != nil {
-		log.Fatalf("failed to generate token: %v", err)
+		return "", fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	return token
+	return token, nil
 }
 
-func buildDB() *bolt.DB {
-	err := os.RemoveAll(storage)
+func buildDB(file string) *bolt.DB {
+	// Start fresh every time for now
+	err := os.RemoveAll(file)
 	if err != nil {
 		log.Fatalf("failed to delete existing db: %v", err)
 	}
 
-	db, err := bolt.Open(storage, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		log.Fatalf("failed to open new db: %v", err)
 	}
