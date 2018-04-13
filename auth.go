@@ -4,29 +4,26 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
-	"github.com/boltdb/bolt"
+	"github.com/freddygv/SmartHouse-Server/kv"
 	"github.com/hashicorp/go-uuid"
 	"golang.org/x/crypto/pbkdf2"
 )
 
 const (
+	maxRetries        = 6
 	iterations        = 4096
 	keyLength         = 64
-	authBucket        = "auth"
-	sessionBucket     = "sessions"
 	storage           = "auth.db"
 	expirationSeconds = 60 * 60 * 24 // 1 day
 )
 
 func main() {
-	db := buildDB(storage)
+	db := kv.NewDB(storage)
 	defer db.Close()
 
 	user := "Bob"
@@ -41,42 +38,33 @@ func main() {
 }
 
 // TODO: Move error handling to responsewriter
-func Register(db *bolt.DB, user, pw string) {
+func Register(db kv.Storer, user, pw string) {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
 		log.Fatalf("failed to generate uuid: %v", err)
 	}
 	key := hash(pw, salt)
 
-	err = db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(authBucket))
-		buf, err := json.Marshal(credential{Key: key, Salt: salt})
-		if err != nil {
-			log.Fatalf("failed to marshal: %v", err)
-		}
+	buf, err := json.Marshal(credential{Key: key, Salt: salt})
+	if err != nil {
+		log.Fatalf("failed to marshal: %v", err)
+	}
 
-		err = b.Put([]byte(user), buf)
-		return err
-	})
+	err = db.PutUser([]byte(user), buf)
 	if err != nil {
 		log.Fatalf("failed to put new user: %v", err)
 	}
 }
 
 // TODO: Move error handling to responsewriter
-func Authenticate(db *bolt.DB, user, pw string) (token string, err error) {
-	var creds credential
+func Authenticate(db kv.Storer, user, pw string) (token string, err error) {
+	stored := db.GetUser([]byte(user))
+	if stored == nil {
+		return "", fmt.Errorf("unregistered user: %s", user)
+	}
 
-	err = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(authBucket))
-		value := b.Get([]byte(user))
-		if value == nil {
-			return fmt.Errorf("unregistered user: %s", user)
-		}
-		err := json.Unmarshal(value, &creds)
-		return err
-	})
-	if err != nil {
+	var creds credential
+	if err := json.Unmarshal(stored, &creds); err != nil {
 		return "", fmt.Errorf("failed to get: %v", err)
 	}
 
@@ -93,30 +81,6 @@ func Authenticate(db *bolt.DB, user, pw string) (token string, err error) {
 	return token, nil
 }
 
-func buildDB(file string) *bolt.DB {
-	// Start fresh every time for now
-	err := os.RemoveAll(file)
-	if err != nil {
-		log.Fatalf("failed to delete existing db: %v", err)
-	}
-
-	db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
-	if err != nil {
-		log.Fatalf("failed to open new db: %v", err)
-	}
-
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(authBucket))
-		_, err = tx.CreateBucketIfNotExists([]byte(sessionBucket))
-		if err != nil {
-			log.Fatalf("failed to create bucket: %v", err)
-		}
-		return nil
-	})
-
-	return db
-}
-
 func hash(pw, salt string) string {
 	key := pbkdf2.Key([]byte(pw), []byte(salt), iterations, keyLength, sha256.New)
 	return base64.StdEncoding.EncodeToString(key)
@@ -124,31 +88,24 @@ func hash(pw, salt string) string {
 }
 
 // newSession persists and returns a new session token
-func newSession(db *bolt.DB) (token string, err error) {
-	invalid := true
-	for invalid {
+func newSession(db kv.Storer) (token string, err error) {
+	for i := 0; i < maxRetries; i++ {
 		uuid, err := uuid.GenerateUUID()
 		if err != nil {
 			return "", fmt.Errorf("failed to generate uuid: %v", err)
 		}
 
-		err = db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(sessionBucket))
-			v := b.Get([]byte(token))
-			if len(v) != 0 {
-				return errors.New("token exists")
-			}
+		if created := db.GetSession([]byte(uuid)); len(created) != 0 {
+			continue
+		}
 
-			time := strconv.FormatInt(time.Now().Unix(), 10)
-			err = b.Put([]byte(uuid), []byte(time))
-			return err
-		})
+		time := strconv.FormatInt(time.Now().Unix(), 10)
+		err = db.PutSession([]byte(uuid), []byte(time))
 		if err == nil {
 			token = uuid
-			invalid = false
+			break
 		}
 	}
-
 	return token, nil
 }
 

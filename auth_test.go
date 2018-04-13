@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/boltdb/bolt"
+	"github.com/freddygv/SmartHouse-Server/kv"
 )
 
 func setup(t *testing.T) (string, func()) {
@@ -24,38 +24,14 @@ func setup(t *testing.T) (string, func()) {
 	return filepath.Join(dir, testdb), teardown
 }
 
-func TestBuildDB(t *testing.T) {
-	testdb, teardown := setup(t)
-	db := buildDB(testdb)
-
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(authBucket))
-		if err.Error() != "bucket already exists" {
-			t.Fatalf("bucket '%s' not created", authBucket)
-		}
-
-		_, err = tx.CreateBucket([]byte(sessionBucket))
-		if err.Error() != "bucket already exists" {
-			t.Fatalf("bucket '%s' not created", sessionBucket)
-		}
-
-		b := tx.Bucket([]byte(authBucket))
-		err = b.Put([]byte("user"), []byte("password"))
-		if err != nil && err.Error() == "database not open" {
-			t.Fatal(err)
-		}
-		return nil
-	})
-	teardown()
-}
-
 func TestEndToEnd(t *testing.T) {
 	testdb, teardown := setup(t)
-	db := buildDB(testdb)
+	defer teardown()
 
 	user := "Bob"
 	pw := "password"
 
+	db := kv.NewDB(testdb)
 	Register(db, user, pw)
 
 	tt := []struct {
@@ -79,7 +55,7 @@ func TestEndToEnd(t *testing.T) {
 			desc:      "user does not exist",
 			loginName: "Alice",
 			loginPW:   "password",
-			err:       "failed to get: unregistered user: Alice",
+			err:       "unregistered user: Alice",
 		},
 	}
 
@@ -91,5 +67,4 @@ func TestEndToEnd(t *testing.T) {
 			}
 		})
 	}
-	teardown()
 }
