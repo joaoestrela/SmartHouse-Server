@@ -32,6 +32,12 @@ func TestBuildDB(t *testing.T) {
 }
 
 func TestEndToEnd(t *testing.T) {
+	db := buildDB(testFile)
+	user := "Bob"
+	pw := "password"
+
+	Register(db, user, pw)
+
 	tt := []struct {
 		desc      string
 		loginName string
@@ -40,8 +46,8 @@ func TestEndToEnd(t *testing.T) {
 	}{
 		{
 			desc:      "happy path",
-			loginName: "Bob",
-			loginPW:   "password",
+			loginName: user,
+			loginPW:   pw,
 		},
 		{
 			desc:      "wrong pw",
@@ -50,15 +56,12 @@ func TestEndToEnd(t *testing.T) {
 			err:       "incorrect password",
 		},
 		{
-			desc:      "wrong pw",
+			desc:      "user does not exist",
 			loginName: "Alice",
 			loginPW:   "password",
 			err:       "failed to get: unregistered user: Alice",
 		},
 	}
-
-	db := buildDB(testFile)
-	Register(db, "Bob", "password")
 
 	for _, tc := range tt {
 		t.Run(tc.desc, func(t *testing.T) {
