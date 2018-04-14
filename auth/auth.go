@@ -22,7 +22,7 @@ const (
 	expirationSeconds = 60 * 60 * 24 // 1 day
 )
 
-// TODO: Move error handling to responsewriter
+// Register registers a new house member
 func Register(db store.AuthStorer, user, pw string) {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
@@ -41,7 +41,7 @@ func Register(db store.AuthStorer, user, pw string) {
 	}
 }
 
-// TODO: Move error handling to responsewriter
+// Authenticate validates a username and password then returns a session token
 func Authenticate(db store.AuthStorer, user, pw string) (token string, err error) {
 	stored := db.GetUser(user)
 	if stored == nil {
