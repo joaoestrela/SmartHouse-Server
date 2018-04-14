@@ -1,7 +1,7 @@
 package store
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"time"
 
@@ -27,28 +27,30 @@ type kvStorage struct {
 }
 
 // NewAuthDB returns a new and initialized db
-func NewAuthDB(file string) AuthStorer {
+func NewAuthDB(file string) (AuthStorer, error) {
 	// Start fresh every time for now
 	err := os.RemoveAll(file)
 	if err != nil {
-		log.Fatalf("failed to delete existing db: %v", err)
+		return nil, fmt.Errorf("failed to delete existing db: %v", err)
 	}
 
 	db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		log.Fatalf("failed to open new db: %v", err)
+		return nil, fmt.Errorf("failed to open new db: %v", err)
 	}
 
-	db.Update(func(tx *bolt.Tx) error {
+	if err := db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(authBucket))
 		_, err = tx.CreateBucketIfNotExists([]byte(sessionBucket))
 		if err != nil {
-			log.Fatalf("failed to create bucket: %v", err)
+			return fmt.Errorf("failed to create bucket: %v", err)
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
-	return &kvStorage{db}
+	return &kvStorage{db}, nil
 }
 
 func (s *kvStorage) PutUser(user, creds string) error {

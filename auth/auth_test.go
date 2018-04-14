@@ -31,7 +31,10 @@ func TestEndToEnd(t *testing.T) {
 	user := "Bob"
 	pw := "password"
 
-	db := store.NewAuthDB(testdb)
+	db, err := store.NewAuthDB(testdb)
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
 	Register(db, user, pw)
 
 	tt := []struct {

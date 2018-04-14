@@ -26,7 +26,10 @@ func TestNewDB(t *testing.T) {
 	testdb, teardown := setup(t)
 	defer teardown()
 
-	_ = NewAuthDB(testdb)
+	_, err := NewAuthDB(testdb)
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
 
 	if _, err := os.Stat(testdb); os.IsNotExist(err) {
 		t.Fatalf("failed to create db: %v", err)
