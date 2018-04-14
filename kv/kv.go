@@ -14,10 +14,11 @@ const (
 )
 
 type Storer interface {
-	PutUser(user, creds []byte) error
-	GetUser(user []byte) []byte
-	GetSession(token []byte) []byte
-	PutSession(token, created []byte) error
+	PutUser(user, creds string) error
+	GetUser(user string) []byte
+	GetSession(token string) []byte
+	PutSession(token, created string) error
+	Close() error
 }
 
 type Storage struct {
@@ -48,39 +49,39 @@ func NewDB(file string) Storer {
 	return &Storage{db}
 }
 
-func (s *Storage) PutUser(user, creds []byte) error {
+func (s *Storage) PutUser(user, creds string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
-		err := b.Put(user, creds)
+		err := b.Put([]byte(user), []byte(creds))
 		return err
 	})
 	return err
 }
 
-func (s *Storage) GetUser(user []byte) []byte {
+func (s *Storage) GetUser(user string) []byte {
 	var creds []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
-		creds = b.Get(user)
+		creds = b.Get([]byte(user))
 		return nil
 	})
 	return creds
 }
 
-func (s *Storage) PutSession(token, created []byte) error {
+func (s *Storage) PutSession(token, created string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
-		err := b.Put(token, created)
+		err := b.Put([]byte(token), []byte(created))
 		return err
 	})
 	return err
 }
 
-func (s *Storage) GetSession(token []byte) []byte {
+func (s *Storage) GetSession(token string) []byte {
 	var created []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
-		created = b.Get(token)
+		created = b.Get([]byte(token))
 		return nil
 	})
 	return created

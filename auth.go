@@ -50,7 +50,7 @@ func Register(db kv.Storer, user, pw string) {
 		log.Fatalf("failed to marshal: %v", err)
 	}
 
-	err = db.PutUser([]byte(user), buf)
+	err = db.PutUser(user, string(buf))
 	if err != nil {
 		log.Fatalf("failed to put new user: %v", err)
 	}
@@ -58,7 +58,7 @@ func Register(db kv.Storer, user, pw string) {
 
 // TODO: Move error handling to responsewriter
 func Authenticate(db kv.Storer, user, pw string) (token string, err error) {
-	stored := db.GetUser([]byte(user))
+	stored := db.GetUser(user)
 	if stored == nil {
 		return "", fmt.Errorf("unregistered user: %s", user)
 	}
@@ -95,12 +95,12 @@ func newSession(db kv.Storer) (token string, err error) {
 			return "", fmt.Errorf("failed to generate uuid: %v", err)
 		}
 
-		if created := db.GetSession([]byte(uuid)); len(created) != 0 {
+		if created := db.GetSession(uuid); len(created) != 0 {
 			continue
 		}
 
 		time := strconv.FormatInt(time.Now().Unix(), 10)
-		err = db.PutSession([]byte(uuid), []byte(time))
+		err = db.PutSession(uuid, time)
 		if err == nil {
 			token = uuid
 			break
