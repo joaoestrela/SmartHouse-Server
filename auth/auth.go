@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"crypto/sha256"
@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/freddygv/SmartHouse-Server/kv"
+	"github.com/freddygv/SmartHouse-Server/auth/store"
 	"github.com/hashicorp/go-uuid"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -22,23 +22,8 @@ const (
 	expirationSeconds = 60 * 60 * 24 // 1 day
 )
 
-func main() {
-	db := kv.NewDB(storage)
-	defer db.Close()
-
-	user := "Bob"
-	pw := "p4$$w0rd"
-
-	Register(db, user, pw)
-	t, err := Authenticate(db, user, pw)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(t)
-}
-
 // TODO: Move error handling to responsewriter
-func Register(db kv.Storer, user, pw string) {
+func Register(db store.AuthStorer, user, pw string) {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
 		log.Fatalf("failed to generate uuid: %v", err)
@@ -57,7 +42,7 @@ func Register(db kv.Storer, user, pw string) {
 }
 
 // TODO: Move error handling to responsewriter
-func Authenticate(db kv.Storer, user, pw string) (token string, err error) {
+func Authenticate(db store.AuthStorer, user, pw string) (token string, err error) {
 	stored := db.GetUser(user)
 	if stored == nil {
 		return "", fmt.Errorf("unregistered user: %s", user)
@@ -88,7 +73,7 @@ func hash(pw, salt string) string {
 }
 
 // newSession persists and returns a new session token
-func newSession(db kv.Storer) (token string, err error) {
+func newSession(db store.AuthStorer) (token string, err error) {
 	for i := 0; i < maxRetries; i++ {
 		uuid, err := uuid.GenerateUUID()
 		if err != nil {

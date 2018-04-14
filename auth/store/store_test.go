@@ -1,4 +1,4 @@
-package kv
+package store
 
 import (
 	"io/ioutil"
@@ -26,7 +26,7 @@ func TestNewDB(t *testing.T) {
 	testdb, teardown := setup(t)
 	defer teardown()
 
-	_ = NewDB(testdb)
+	_ = NewAuthDB(testdb)
 
 	if _, err := os.Stat(testdb); os.IsNotExist(err) {
 		t.Fatalf("failed to create db: %v", err)

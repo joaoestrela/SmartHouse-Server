@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"io/ioutil"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/freddygv/SmartHouse-Server/kv"
+	"github.com/freddygv/SmartHouse-Server/auth/store"
 )
 
 func setup(t *testing.T) (string, func()) {
@@ -31,7 +31,7 @@ func TestEndToEnd(t *testing.T) {
 	user := "Bob"
 	pw := "password"
 
-	db := kv.NewDB(testdb)
+	db := store.NewAuthDB(testdb)
 	Register(db, user, pw)
 
 	tt := []struct {

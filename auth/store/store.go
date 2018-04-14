@@ -1,4 +1,4 @@
-package kv
+package store
 
 import (
 	"log"
@@ -13,19 +13,19 @@ const (
 	sessionBucket = "sessions"
 )
 
-type Storer interface {
+type AuthStorer interface {
 	PutUser(user, creds string) error
 	GetUser(user string) []byte
-	GetSession(token string) []byte
 	PutSession(token, created string) error
+	GetSession(token string) []byte
 	Close() error
 }
 
-type Storage struct {
+type KVStorage struct {
 	*bolt.DB
 }
 
-func NewDB(file string) Storer {
+func NewAuthDB(file string) AuthStorer {
 	// Start fresh every time for now
 	err := os.RemoveAll(file)
 	if err != nil {
@@ -46,10 +46,10 @@ func NewDB(file string) Storer {
 		return nil
 	})
 
-	return &Storage{db}
+	return &KVStorage{db}
 }
 
-func (s *Storage) PutUser(user, creds string) error {
+func (s *KVStorage) PutUser(user, creds string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
 		err := b.Put([]byte(user), []byte(creds))
@@ -58,7 +58,7 @@ func (s *Storage) PutUser(user, creds string) error {
 	return err
 }
 
-func (s *Storage) GetUser(user string) []byte {
+func (s *KVStorage) GetUser(user string) []byte {
 	var creds []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
@@ -68,7 +68,7 @@ func (s *Storage) GetUser(user string) []byte {
 	return creds
 }
 
-func (s *Storage) PutSession(token, created string) error {
+func (s *KVStorage) PutSession(token, created string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
 		err := b.Put([]byte(token), []byte(created))
@@ -77,7 +77,7 @@ func (s *Storage) PutSession(token, created string) error {
 	return err
 }
 
-func (s *Storage) GetSession(token string) []byte {
+func (s *KVStorage) GetSession(token string) []byte {
 	var created []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
