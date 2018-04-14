@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/freddygv/SmartHouse-Server/auth/store"
 	"github.com/hashicorp/go-uuid"
 	"golang.org/x/crypto/pbkdf2"
 )
@@ -23,26 +22,27 @@ const (
 )
 
 // Register registers a new house member
-func Register(db *store.AuthStore, user, pw string) {
+func Register(db *AuthStore, user, pw string) error {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
-		log.Fatalf("failed to generate uuid: %v", err)
+		return fmt.Errorf("failed to generate uuid: %v", err)
 	}
 	key := hash(pw, salt)
 
 	buf, err := json.Marshal(credential{Key: key, Salt: salt})
 	if err != nil {
-		log.Fatalf("failed to marshal: %v", err)
+		return fmt.Errorf("failed to marshal (key:%s, salt: %s): %v", key, salt, err)
 	}
 
 	err = db.PutUser(user, string(buf))
 	if err != nil {
-		log.Fatalf("failed to put new user: %v", err)
+		return fmt.Errorf("failed to put new user '%s': %v", user, err)
 	}
+	return nil
 }
 
 // Authenticate validates a username and password then returns a session token
-func Authenticate(db *store.AuthStore, user, pw string) (token string, err error) {
+func Authenticate(db *AuthStore, user, pw string) (token string, err error) {
 	stored := db.UserCredentials(user)
 	if stored == nil {
 		return "", fmt.Errorf("unregistered user: %s", user)
@@ -50,7 +50,7 @@ func Authenticate(db *store.AuthStore, user, pw string) (token string, err error
 
 	var creds credential
 	if err := json.Unmarshal(stored, &creds); err != nil {
-		return "", fmt.Errorf("failed to get: %v", err)
+		return "", fmt.Errorf("failed to unmarshal creds: %v", err)
 	}
 
 	key := hash(pw, creds.Salt)
@@ -73,7 +73,7 @@ func hash(pw, salt string) string {
 }
 
 // newSession persists and returns a new session token
-func newSession(db *store.AuthStore) (token string, err error) {
+func newSession(db *AuthStore) (token string, err error) {
 	for i := 0; i < maxRetries; i++ {
 		uuid, err := uuid.GenerateUUID()
 		if err != nil {
@@ -81,8 +81,8 @@ func newSession(db *store.AuthStore) (token string, err error) {
 		}
 
 		created, err := db.SessionCreation(uuid)
-		// An error here means data has been corrupted, so attempt to delete the sessions
 		if err != nil {
+			log.Printf("failed to parse creation. deleting token '%s': %v\n", uuid, err)
 			if err = db.DeleteSession(uuid); err != nil {
 				log.Printf("failed to delete token '%s': %v\n", uuid, err)
 				continue

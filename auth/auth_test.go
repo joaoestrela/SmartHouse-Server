@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/freddygv/SmartHouse-Server/auth/store"
 )
 
 func setup(t *testing.T) (string, func()) {
@@ -24,6 +22,20 @@ func setup(t *testing.T) (string, func()) {
 	return filepath.Join(dir, testdb), teardown
 }
 
+func TestNewDB(t *testing.T) {
+	testdb, teardown := setup(t)
+	defer teardown()
+
+	_, err := NewAuthDB(testdb)
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
+
+	if _, err := os.Stat(testdb); os.IsNotExist(err) {
+		t.Fatalf("failed to create db: %v", err)
+	}
+}
+
 func TestEndToEnd(t *testing.T) {
 	testdb, teardown := setup(t)
 	defer teardown()
@@ -31,7 +43,7 @@ func TestEndToEnd(t *testing.T) {
 	user := "Bob"
 	pw := "password"
 
-	db, err := store.NewAuthDB(testdb)
+	db, err := NewAuthDB(testdb)
 	if err != nil {
 		t.Fatalf("failed to create db: %v", err)
 	}
