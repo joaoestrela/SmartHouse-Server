@@ -23,7 +23,7 @@ const (
 )
 
 // Register registers a new house member
-func Register(db store.AuthStorer, user, pw string) {
+func Register(db *store.AuthStore, user, pw string) {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
 		log.Fatalf("failed to generate uuid: %v", err)
@@ -42,8 +42,8 @@ func Register(db store.AuthStorer, user, pw string) {
 }
 
 // Authenticate validates a username and password then returns a session token
-func Authenticate(db store.AuthStorer, user, pw string) (token string, err error) {
-	stored := db.GetUser(user)
+func Authenticate(db *store.AuthStore, user, pw string) (token string, err error) {
+	stored := db.UserCredentials(user)
 	if stored == nil {
 		return "", fmt.Errorf("unregistered user: %s", user)
 	}
@@ -73,14 +73,14 @@ func hash(pw, salt string) string {
 }
 
 // newSession persists and returns a new session token
-func newSession(db store.AuthStorer) (token string, err error) {
+func newSession(db *store.AuthStore) (token string, err error) {
 	for i := 0; i < maxRetries; i++ {
 		uuid, err := uuid.GenerateUUID()
 		if err != nil {
 			return "", fmt.Errorf("failed to generate uuid: %v", err)
 		}
 
-		if created := db.GetSession(uuid); len(created) != 0 {
+		if created := db.SessionCreation(uuid); len(created) != 0 {
 			continue
 		}
 

@@ -13,21 +13,13 @@ const (
 	sessionBucket = "sessions"
 )
 
-// AuthStorer enables the registration and validation of users and sessions
-type AuthStorer interface {
-	PutUser(user, creds string) error
-	GetUser(user string) []byte
-	PutSession(token, created string) error
-	GetSession(token string) []byte
-	Close() error
-}
-
-type kvStorage struct {
+// AuthStore supports the creation and retrieval of users and sessions
+type AuthStore struct {
 	*bolt.DB
 }
 
 // NewAuthDB returns a new and initialized db
-func NewAuthDB(file string) (AuthStorer, error) {
+func NewAuthDB(file string) (*AuthStore, error) {
 	// Start fresh every time for now
 	err := os.RemoveAll(file)
 	if err != nil {
@@ -50,10 +42,11 @@ func NewAuthDB(file string) (AuthStorer, error) {
 		return nil, err
 	}
 
-	return &kvStorage{db}, nil
+	return &AuthStore{db}, nil
 }
 
-func (s *kvStorage) PutUser(user, creds string) error {
+// PutUser persists a user name and its credentials (key and salt)
+func (s *AuthStore) PutUser(user, creds string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
 		err := b.Put([]byte(user), []byte(creds))
@@ -62,7 +55,8 @@ func (s *kvStorage) PutUser(user, creds string) error {
 	return err
 }
 
-func (s *kvStorage) GetUser(user string) []byte {
+// UserCredentials retrieves a user's credentials (key and salt)
+func (s *AuthStore) UserCredentials(user string) []byte {
 	var creds []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(authBucket))
@@ -72,7 +66,8 @@ func (s *kvStorage) GetUser(user string) []byte {
 	return creds
 }
 
-func (s *kvStorage) PutSession(token, created string) error {
+// PutSession persists a session token and its creation date
+func (s *AuthStore) PutSession(token, created string) error {
 	err := s.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
 		err := b.Put([]byte(token), []byte(created))
@@ -81,7 +76,8 @@ func (s *kvStorage) PutSession(token, created string) error {
 	return err
 }
 
-func (s *kvStorage) GetSession(token string) []byte {
+// SessionCreation retrieves the creation date of a session token
+func (s *AuthStore) SessionCreation(token string) []byte {
 	var created []byte
 	_ = s.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(sessionBucket))
