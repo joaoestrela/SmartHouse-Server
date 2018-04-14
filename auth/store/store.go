@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -13,7 +14,7 @@ const (
 	sessionBucket = "sessions"
 )
 
-// AuthStore supports the creation and retrieval of users and sessions
+// AuthStore supports the creation and retrieval of user and session data
 type AuthStore struct {
 	*bolt.DB
 }
@@ -77,12 +78,26 @@ func (s *AuthStore) PutSession(token, created string) error {
 }
 
 // SessionCreation retrieves the creation date of a session token
-func (s *AuthStore) SessionCreation(token string) []byte {
-	var created []byte
-	_ = s.View(func(tx *bolt.Tx) error {
+func (s *AuthStore) SessionCreation(token string) (int64, error) {
+	var created int64
+	if err := s.View(func(tx *bolt.Tx) (err error) {
 		b := tx.Bucket([]byte(sessionBucket))
-		created = b.Get([]byte(token))
-		return nil
-	})
-	return created
+		c := b.Get([]byte(token))
+		created, err = strconv.ParseInt(string(c), 10, 64)
+		return err
+	}); err != nil {
+		return 0, err
+	}
+	return created, nil
+}
+
+// DeleteSession deletes a session token
+func (s *AuthStore) DeleteSession(token string) error {
+	if err := s.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(sessionBucket))
+		return b.Delete([]byte(token))
+	}); err != nil {
+		return err
+	}
+	return nil
 }

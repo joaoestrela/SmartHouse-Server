@@ -59,8 +59,8 @@ func Authenticate(db *store.AuthStore, user, pw string) (token string, err error
 	}
 
 	token, err = newSession(db)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %v", err)
+	if err != nil || token == "" {
+		return "", fmt.Errorf("failed to generate session token: %v", err)
 	}
 
 	return token, nil
@@ -80,7 +80,16 @@ func newSession(db *store.AuthStore) (token string, err error) {
 			return "", fmt.Errorf("failed to generate uuid: %v", err)
 		}
 
-		if created := db.SessionCreation(uuid); len(created) != 0 {
+		created, err := db.SessionCreation(uuid)
+		// An error here means data has been corrupted, so attempt to delete the sessions
+		if err != nil {
+			if err = db.DeleteSession(uuid); err != nil {
+				log.Printf("failed to delete token '%s': %v\n", uuid, err)
+				continue
+			}
+		}
+		// Continue to generate a new token if the current one exists
+		if created != 0 {
 			continue
 		}
 
