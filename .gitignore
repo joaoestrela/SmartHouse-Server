@@ -1,5 +1,8 @@
-
 # Created by https://www.gitignore.io/api/go
+
+# Terraform
+.terraform/
+*.tfstate*
 
 # Credentials DB
 *.db
@@ -11,6 +14,8 @@
 *.dll
 *.so
 *.dylib
+pub/
+gateway
 
 # Test binary, build with `go test -c`
 *.test
