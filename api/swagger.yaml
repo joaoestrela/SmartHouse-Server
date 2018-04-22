@@ -1,0 +1,398 @@
+swagger: '2.0'
+info:
+  version: 1.0.2
+  title: Smart House
+  description: The API for the Smart House IOT project for embedded systems course
+  
+consumes:
+  - application/json
+  
+produces:
+  - application/json
+  
+securityDefinitions:
+  ApiKeyAuth:
+    type: apiKey
+    in: header
+    name: SmartHouseSession
+    
+security:
+  - ApiKeyAuth: []
+  
+paths:
+  /register:
+     post:
+      tags:
+        - Authentication
+      description: Register as user.
+      operationId: register
+      parameters:
+        - in: body
+          name: registrationInfo
+          description: User information.
+          schema:
+            type: object
+            required:
+              - username
+              - password
+              - secret
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              secret:
+                type: string
+      responses:
+        '200':
+          description: Successful registration
+          schema:
+            $ref: '#/definitions/StatusResponse'
+            
+  /login:
+    post:
+      tags:
+      - Authentication
+      description: authenticate the user
+      operationId: login
+      security: []
+      parameters:
+        - in: body
+          name: loginInfo
+          description: User information.
+          schema:
+            type: object
+            required:
+              - username
+              - password
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+      responses:
+        '200':
+          description: Successful login
+          schema:
+            type: object
+            required:
+              - token
+            properties:
+              token:
+                type: string
+            
+  /lights:
+    get:
+      tags:
+      - Lights
+      description: status of all the lights
+      operationId: getLights
+      responses:
+        '200':
+          description: Summary of all lights status
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Light'
+              
+  /lights/{lightID}:
+    get:
+      tags:
+      - Lights
+      description: status of the specied light
+      operationId: getLightState
+      parameters:
+      - name: lightID
+        in: path
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Summary of light status
+          schema:
+              $ref: '#/definitions/Light'
+              
+  /lights/{lightID}/{state}:
+    put:
+      tags:
+      - Lights
+      description: turns the light on or off
+      operationId: setLightState
+      parameters:
+      - name: lightID
+        in: path
+        required: true
+        type: string
+      - name: state
+        in: path
+        required: true
+        type: string
+        enum:
+        - on
+        - off
+      responses:
+        '200':
+          description: Successful light state change
+          schema:
+            $ref: '#/definitions/StatusResponse'
+            
+  /lights/{lightID}/settings:
+    get:
+      tags:
+      - Lights
+      description: get all settings for a specific light
+      operationId: settingsLight
+      parameters: 
+      - name: lightID
+        in: path
+        required: true
+        type: string
+      responses:
+        '200':
+          description: Setting for specific light
+          schema:
+              type: array
+              items:
+                $ref: '#/definitions/Setting'
+    put:
+        tags:
+        - Lights
+        description: turns the automatic light on/off
+        operationId: setLuminosityThreshhold
+        parameters:
+        - name: lightID
+          in: path
+          required: true
+          type: string
+        - name: settings
+          in: body
+          required: true
+          schema:
+            type: object
+            items:
+              $ref: '#/definitions/Setting'
+        responses:
+          '200':
+            description: Successful setting change
+            schema:
+              $ref: '#/definitions/StatusResponse'
+              
+  /luminosity:
+    get:
+      tags:
+      - Environment
+      operationId: luminosity
+      parameters: []
+      responses:
+        '200':
+          description: Current value of luminosity
+          schema:
+            $ref: '#/definitions/SensorData'
+            
+  /luminosity/history:
+    get:
+      tags:
+      - Environment
+      operationId: luminosityHistory
+      parameters: []
+      responses:
+        '200':
+          description: Past values of luminosity
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/SensorData'
+              
+  /temperature:
+    get:
+      tags:
+      - Environment
+      operationId: temperature
+      parameters: []
+      responses:
+        '200':
+          description: Current value of temperature
+          schema:
+            $ref: '#/definitions/SensorData'
+            
+  /temperature/history:
+    get:
+      tags:
+      - Environment
+      operationId: temperatureHistory
+      parameters: []
+      responses:
+        '200':
+          description: Past values of temperature
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/SensorData'
+              
+  /music:
+    get:
+      tags:
+      - Music
+      operationId: musicSummary
+      description: status of music player
+      parameters: []
+      responses:
+        '200':
+          description: Status of the music player
+          schema:
+            $ref: '#/definitions/MusicPlayerStatus'
+            
+  /music/available/:
+    get:
+      tags:
+      - Music
+      operationId: musicAvailable
+      description: asking for available tracks
+      parameters: []
+      responses:
+        '200':
+          description: Available tracks
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/Track'
+              
+  /music/{state}:
+    put:
+        tags:
+        - Music
+        description: turns the music on or off
+        operationId: setMusicState
+        parameters:
+        - name: state
+          in: path
+          required: true
+          type: string
+          enum:
+          - on
+          - off
+        responses:
+          '200':
+            description: Successful music toggle
+            schema:
+              $ref: '#/definitions/MusicPlayerStatus'
+              
+  /music/play:
+    put:
+      tags:
+      - Music
+      description: play track based on query
+      operationId: playTrack
+      parameters:
+      - name: trackId
+        in: query
+        required: true
+        type: integer
+      responses:
+        '200':
+          description: Successful play request
+          schema:
+            $ref: '#/definitions/MusicPlayerStatus'
+            
+  /settings/home/:
+    put:
+        tags:
+        - Settings
+        description: set global settings
+        operationId: setHomeSettings
+        parameters:
+        - name: settings
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Setting'
+        responses:
+          '200':
+            description: Current Global Settings
+            schema:
+              $ref: '#/definitions/Setting'
+definitions:
+  Light:
+    type: object
+    required:
+      - id
+      - description
+      - on
+      - threshold
+      - automatic
+    properties:
+      id:
+        type: integer
+      description:
+        type: string
+      on:
+        type: boolean
+      threshold:
+        type: number
+      automatic:
+        type: boolean
+    example:
+      id: 1
+      description: "bedroom"
+      on: false
+      threshold: 0.5
+      automatic: "auto"
+      
+  MusicPlayerStatus:
+    type: object
+    required:
+      - state
+    properties:
+      state:
+        type: boolean
+      track:
+        $ref: '#/definitions/Track'
+        
+  Track:
+    type: object
+    required:
+      - id
+      - name
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    example:
+      id: 42
+      name: "Rick Astley - Never Gonna Give You Up"
+      
+  SensorData:
+    type: object
+    required:
+      - value
+      - unit
+    properties:
+      value:
+        type: number
+      unit:
+        type: string
+    example:
+      value: 70
+      unit: celsium
+      
+  Setting:
+    type: object
+    properties:
+      automatic:
+        type: boolean
+      threshold:
+        type: number
+        
+  StatusResponse:
+    type: object
+    properties:
+      message:
+        type: string
+        example: 'OK'
+        
+# Added by API Auto Mocking Plugin
+host: virtserver.swaggerhub.com
+basePath: /SmartHouse/1.0.2
+schemes:
+ - https

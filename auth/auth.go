@@ -22,6 +22,7 @@ const (
 )
 
 // Register registers a new house member
+// TODO: Check if user is already registered first
 func Register(db *AuthStore, user, pw string) error {
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
