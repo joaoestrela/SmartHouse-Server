@@ -74,12 +74,7 @@ paths:
         '200':
           description: Successful login
           schema:
-            type: object
-            required:
-              - token
-            properties:
-              token:
-                type: string
+            $ref: '#/definitions/StatusResponse'
             
   /lights:
     get:
@@ -292,7 +287,7 @@ paths:
         '200':
           description: Successful play request
           schema:
-            $ref: '#/definitions/MusicPlayerStatus'
+            $ref: '#/definitions/StatusResponse'
             
   /settings/home/:
     put:
@@ -310,7 +305,7 @@ paths:
           '200':
             description: Current Global Settings
             schema:
-              $ref: '#/definitions/Setting'
+              $ref: '#/definitions/StatusResponse'
 definitions:
   Light:
     type: object
@@ -323,7 +318,7 @@ definitions:
     properties:
       id:
         type: integer
-      description:
+      descriptio:
         type: string
       on:
         type: boolean
@@ -336,14 +331,14 @@ definitions:
       description: "bedroom"
       on: false
       threshold: 0.5
-      automatic: "auto"
+      automatic: true
       
   MusicPlayerStatus:
     type: object
     required:
-      - state
+      - status
     properties:
-      state:
+      status:
         type: boolean
       track:
         $ref: '#/definitions/Track'
@@ -383,6 +378,9 @@ definitions:
         type: boolean
       threshold:
         type: number
+    example:
+      automatic: true
+      threshold: 1.5
         
   StatusResponse:
     type: object
@@ -393,6 +391,6 @@ definitions:
         
 # Added by API Auto Mocking Plugin
 host: virtserver.swaggerhub.com
-basePath: /SmartHouse/1.0.2
+basePath: /Evilong/SmartHouse/1.0.1
 schemes:
  - https
