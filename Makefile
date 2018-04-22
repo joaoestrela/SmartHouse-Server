@@ -6,7 +6,10 @@ REMOTE = /home/ubuntu
 release: linux64 vars
 	ssh -i $(KEY) $(HOST) "rm -f $(REMOTE)/$(APP)"
 	scp -i $(KEY) $(APP) $(HOST):$(REMOTE)
-	ssh -i $(KEY) $(HOST) "nohup ./$(APP) &"
+	
+	# Redirect stdout and stderr so it doesn't hang
+	# https://stackoverflow.com/a/29172
+	ssh -i $(KEY) $(HOST) "nohup ./$(APP) > st.out 2> st.err < /dev/null &"
 
 vars:
 	$(eval PUBLIC_DNS = $(shell terraform output public_dns))

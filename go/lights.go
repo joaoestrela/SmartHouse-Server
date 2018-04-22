@@ -42,7 +42,7 @@ func GetLights(w http.ResponseWriter, r *http.Request) {
 			Automatic:   true,
 		},
 		Light{
-			ID:          1,
+			ID:          2,
 			Description: "kitchen",
 			On:          true,
 			Threshold:   0.5,
