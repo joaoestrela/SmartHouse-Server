@@ -1,4 +1,4 @@
-package auth
+package server
 
 import (
 	"fmt"
@@ -9,30 +9,32 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-const (
-	authBucket    = "auth"
-	sessionBucket = "sessions"
-)
-
 // AuthStore supports the creation and retrieval of user and session data
 type AuthStore struct {
 	*bolt.DB
 }
 
+const (
+	authBucket    = "auth"
+	sessionBucket = "sessions"
+)
+
+var db *AuthStore
+
 // NewAuthDB returns a new and initialized db
-func NewAuthDB(file string) (*AuthStore, error) {
+func NewAuthDB(file string) error {
 	// Start fresh every time for now
 	err := os.RemoveAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete existing db: %v", err)
+		return fmt.Errorf("failed to delete existing db: %v", err)
 	}
 
-	db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	storage, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open new db: %v", err)
+		return fmt.Errorf("failed to open new db: %v", err)
 	}
 
-	if err := db.Update(func(tx *bolt.Tx) error {
+	if err := storage.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(authBucket))
 		_, err = tx.CreateBucketIfNotExists([]byte(sessionBucket))
 		if err != nil {
@@ -40,10 +42,12 @@ func NewAuthDB(file string) (*AuthStore, error) {
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		return err
 	}
 
-	return &AuthStore{db}, nil
+	db = &AuthStore{storage}
+
+	return nil
 }
 
 // PutUser persists a user name and its credentials (key and salt)

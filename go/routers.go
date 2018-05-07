@@ -155,5 +155,5 @@ var routes = Routes{
 }
 
 type StatusResponse struct {
-	Message string
+	Message string `json:"message,omitempty"`
 }
