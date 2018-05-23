@@ -7,14 +7,19 @@ import (
 	server "github.com/freddygv/SmartHouse-Server/go"
 )
 
-const storage = "auth.db"
+var (
+	device = "/dev/ttyACM0"
+	baud   = 9600
+)
 
 func main() {
-	if err := server.NewAuthDB(storage); err != nil {
-		log.Fatalf("failed to create db: %v", err)
-	}
-	router := server.NewRouter()
+	router := server.NewServer(device, baud)
 
 	log.Printf("Server started...\n")
 	log.Fatal(http.ListenAndServe("0.0.0.0:8888", router))
+
+	// Make requests for temperature
+	// Make requests for luminosity
+	// Change status of an LED
+	// Listen for changes to LEDS
 }

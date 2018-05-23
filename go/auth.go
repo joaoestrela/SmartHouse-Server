@@ -18,7 +18,7 @@ const (
 	maxRetries        = 6
 	iterations        = 4096
 	keyLength         = 64
-	expirationSeconds = 60 * 60 * 24 // 1 day
+	expirationSeconds = 60 * 60 * 24 * 7 // 7 days
 	secret            = "esperta"
 )
 
@@ -80,7 +80,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Register registers a new house member
-// TODO: Check if user is already registered first
+// TODO: Check if user is already registered
 func Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 

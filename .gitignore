@@ -1,5 +1,8 @@
 # Created by https://www.gitignore.io/api/go
 
+# Test serial comms file
+serial.go
+
 # Terraform
 .terraform/
 *.tfstate*
@@ -15,6 +18,7 @@
 *.so
 *.dylib
 pub/
+bin/
 gateway
 
 # Test binary, build with `go test -c`

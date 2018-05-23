@@ -2,7 +2,12 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type MusicPlayerStatus struct {
@@ -58,28 +63,33 @@ func MusicSummary(w http.ResponseWriter, r *http.Request) {
 func PlayTrack(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	buf, err := json.Marshal(StatusResponse{Message: "OK"})
+	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	defer r.Body.Close()
+
+	var t Track
+	if err := json.Unmarshal(b, &t); err != nil {
+		msg := fmt.Sprintf("failed to unmarshal: %v", err)
+		log.Println(msg)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Play failed: %s"}`, msg)))
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
-	w.Write(buf)
+	w.Write([]byte(fmt.Sprintf(`{"message": "OK, playing track id: %s"}`, t.ID)))
 }
 
 func SetMusicState(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	status := MusicPlayerStatus{
-		State: true,
-		Track: Track{
-			ID:   42,
-			Name: "Rick Astley - Never Gonna Give You Up",
-		},
-	}
-	buf, err := json.Marshal(status)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	params := mux.Vars(r)
+	state := params["state"]
+
+	// TODO: Do something with request
+
 	w.WriteHeader(http.StatusOK)
-	w.Write(buf)
+	w.Write([]byte(fmt.Sprintf(`{"message": "OK, music state updated to: %s"}`, state)))
 }

@@ -44,7 +44,7 @@ paths:
               secret:
                 type: string
       responses:
-        '200':
+        200:
           description: Successful registration
           schema:
             $ref: '#/definitions/StatusResponse'
@@ -71,7 +71,7 @@ paths:
               password:
                 type: string
       responses:
-        '200':
+        200:
           description: Successful login
           schema:
             $ref: '#/definitions/StatusResponse'
@@ -83,7 +83,7 @@ paths:
       description: status of all the lights
       operationId: getLights
       responses:
-        '200':
+        200:
           description: Summary of all lights status
           schema:
             type: array
@@ -102,7 +102,7 @@ paths:
         required: true
         type: string
       responses:
-        '200':
+        200:
           description: Summary of light status
           schema:
               $ref: '#/definitions/Light'
@@ -126,51 +126,10 @@ paths:
         - on
         - off
       responses:
-        '200':
+        200:
           description: Successful light state change
           schema:
             $ref: '#/definitions/StatusResponse'
-            
-  /lights/{lightID}/settings:
-    get:
-      tags:
-      - Lights
-      description: get all settings for a specific light
-      operationId: settingsLight
-      parameters: 
-      - name: lightID
-        in: path
-        required: true
-        type: string
-      responses:
-        '200':
-          description: Setting for specific light
-          schema:
-              type: array
-              items:
-                $ref: '#/definitions/Setting'
-    put:
-        tags:
-        - Lights
-        description: turns the automatic light on/off
-        operationId: setLuminosityThreshhold
-        parameters:
-        - name: lightID
-          in: path
-          required: true
-          type: string
-        - name: settings
-          in: body
-          required: true
-          schema:
-            type: object
-            items:
-              $ref: '#/definitions/Setting'
-        responses:
-          '200':
-            description: Successful setting change
-            schema:
-              $ref: '#/definitions/StatusResponse'
               
   /luminosity:
     get:
@@ -179,7 +138,7 @@ paths:
       operationId: luminosity
       parameters: []
       responses:
-        '200':
+        200:
           description: Current value of luminosity
           schema:
             $ref: '#/definitions/SensorData'
@@ -191,7 +150,7 @@ paths:
       operationId: luminosityHistory
       parameters: []
       responses:
-        '200':
+        200:
           description: Past values of luminosity
           schema:
             type: array
@@ -205,7 +164,7 @@ paths:
       operationId: temperature
       parameters: []
       responses:
-        '200':
+        200:
           description: Current value of temperature
           schema:
             $ref: '#/definitions/SensorData'
@@ -217,7 +176,7 @@ paths:
       operationId: temperatureHistory
       parameters: []
       responses:
-        '200':
+        200:
           description: Past values of temperature
           schema:
             type: array
@@ -232,7 +191,7 @@ paths:
       description: status of music player
       parameters: []
       responses:
-        '200':
+        200:
           description: Status of the music player
           schema:
             $ref: '#/definitions/MusicPlayerStatus'
@@ -245,7 +204,7 @@ paths:
       description: asking for available tracks
       parameters: []
       responses:
-        '200':
+        200:
           description: Available tracks
           schema:
             type: array
@@ -267,7 +226,7 @@ paths:
           - on
           - off
         responses:
-          '200':
+          200:
             description: Successful music toggle
             schema:
               $ref: '#/definitions/MusicPlayerStatus'
@@ -284,7 +243,7 @@ paths:
         required: true
         type: integer
       responses:
-        '200':
+        200:
           description: Successful play request
           schema:
             $ref: '#/definitions/StatusResponse'
@@ -302,7 +261,7 @@ paths:
           schema:
             $ref: '#/definitions/Setting'
         responses:
-          '200':
+          200:
             description: Current Global Settings
             schema:
               $ref: '#/definitions/StatusResponse'
@@ -312,7 +271,7 @@ definitions:
     required:
       - id
       - description
-      - on
+      - turnon
       - threshold
       - automatic
     properties:
@@ -320,7 +279,7 @@ definitions:
         type: integer
       description:
         type: string
-      on:
+      turnon:
         type: boolean
       threshold:
         type: number
@@ -370,7 +329,15 @@ definitions:
     example:
       value: 70
       unit: celsium
-      
+  
+  LightSetting:
+    type: object
+    properties:
+      automatic:
+        type: boolean
+    example:
+      automatic: true
+  
   Setting:
     type: object
     properties:
@@ -391,6 +358,6 @@ definitions:
         
 # Added by API Auto Mocking Plugin
 host: virtserver.swaggerhub.com
-basePath: /Evilong/SmartHouse/1.0.1
+basePath: /Evilong/SmartHouse/1.0.2
 schemes:
  - https

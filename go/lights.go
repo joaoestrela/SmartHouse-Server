@@ -2,27 +2,36 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gorilla/mux"
+	"github.com/tarm/serial"
 )
 
 type Light struct {
-	ID          int     `json:"id,omitempty"`
-	Description string  `json:"description,omitempty"`
-	On          bool    `json:"on,omitempty"`
-	Threshold   float32 `json:"threshold,omitempty"`
-	Automatic   bool    `json:"automatic,omitempty"`
+	ID          int    `json:"id"`
+	Description string `json:"description,omitempty"`
+	TurnOn      bool   `json:"turnon"`
 }
 
-func GetLightState(w http.ResponseWriter, r *http.Request) {
+func LightState(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	buf, err := json.Marshal(&Light{
-		ID:          1,
-		Description: "bedroom",
-		On:          false,
-		Threshold:   0.5,
-		Automatic:   true,
-	})
+	params := mux.Vars(r)
+	id, err := strconv.Atoi(params["lightID"])
+	if err != nil {
+		msg := fmt.Sprintf("failed to parse id: %v", err)
+		log.Println(msg)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Light state failed: %s"}`, msg)))
+		return
+	}
+
+	buf, err := json.Marshal(lights[id])
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -30,28 +39,19 @@ func GetLightState(w http.ResponseWriter, r *http.Request) {
 	w.Write(buf)
 }
 
-func GetLights(w http.ResponseWriter, r *http.Request) {
+func Lights(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	lights := []Light{
-		Light{
-			ID:          1,
-			Description: "bedroom",
-			On:          false,
-			Threshold:   0.5,
-			Automatic:   true,
-		},
-		Light{
-			ID:          2,
-			Description: "kitchen",
-			On:          true,
-			Threshold:   0.5,
-			Automatic:   true,
-		},
-	}
+	// TODO: Verify what's going on here
+	fmt.Println(lights[2].TurnOn)
+
 	buf, err := json.Marshal(lights)
 	if err != nil {
+		msg := fmt.Sprintf("failed to marshal json: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Lights state failed: %s"}`, msg)))
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(buf)
@@ -60,29 +60,58 @@ func GetLights(w http.ResponseWriter, r *http.Request) {
 func SetLightState(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	buf, err := json.Marshal(&StatusResponse{Message: "OK"})
-	if err != nil {
+	params := mux.Vars(r)
+
+	state := strings.ToUpper(params["state"])
+
+	id, err := strconv.Atoi(params["lightID"])
+	if err != nil || id >= len(lights)-1 {
+		msg := fmt.Sprintf("failed to parse id: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}\n`, msg)))
+		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write(buf)
-}
 
-func SetLuminosityThreshhold(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	buf, err := json.Marshal(&StatusResponse{Message: "OK"})
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	switch state {
+	case "ON":
+		lights[id].TurnOn = true
+	case "OFF":
+		lights[id].TurnOn = false
+	default:
+		msg := fmt.Sprintf("invalid command: %v", state)
+		log.Println(msg)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}`, msg)))
+		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write(buf)
-}
 
-func SettingsLight(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if LIVE == true {
+		s, err := serial.OpenPort(serialConf)
+		if err != nil {
+			msg := fmt.Sprintf("failed to open port: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}`, msg)))
+			return
+		}
+		defer s.Close()
 
-	buf, err := json.Marshal(&Settings{Automatic: true, Threshold: 1.5})
+		// Example Arduino commands: led1_ON, led2_OFF
+		cmd := fmt.Sprintf("led%d_%s\n", id, state)
+
+		_, err = s.Write([]byte(cmd))
+		if err != nil {
+			msg := fmt.Sprintf("failed to write: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}`, msg)))
+			return
+		}
+	}
+
+	msg := fmt.Sprintf("OK, toggled light #%d to %s", id, state)
+	buf, err := json.Marshal(&StatusResponse{Message: msg})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	}

@@ -52,7 +52,7 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("failed to create db: %v", err)
 	}
 
-	srv := httptest.NewServer(server.NewRouter())
+	srv := httptest.NewServer(server.NewServer("foo", 1))
 	defer srv.Close()
 
 	input := server.RegInput{
