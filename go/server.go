@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -20,6 +21,7 @@ var (
 	serialConf *serial.Config
 	lights     []Light
 	settings   Settings
+	mutex      sync.Mutex
 )
 
 type StatusResponse struct {
@@ -205,26 +207,23 @@ func UpdateReceiver() {
 			log.Fatalf("failed to open serial port: %v", err)
 		}
 
-		// Try to read
-		dec := json.NewDecoder(s)
-		for dec.More() {
-			var l Light
-			if err := dec.Decode(&l); err != nil {
-				log.Printf("error: failed to unmarshal: %v", err)
-				time.Sleep(1 * time.Millisecond)
-				continue
+		mutex.Lock()
+		{
+			// Try to read
+			dec := json.NewDecoder(s)
+			for dec.More() {
+				var l Light
+				if err := dec.Decode(&l); err != nil {
+					log.Printf("error: failed to unmarshal: %v", err)
+					time.Sleep(1 * time.Millisecond)
+					continue
+				}
+
+				lights[l.ID-1].TurnOn = l.TurnOn
+				log.Printf("Light #%d set to: %t", l.ID, l.TurnOn)
 			}
-
-			lights[l.ID-1].TurnOn = l.TurnOn
-			log.Printf("Light #%d set to: %t", l.ID, l.TurnOn)
+			s.Close()
 		}
-		s.Close()
-
-		// TODO: Make sure arduino can receive
-		// Reply if success
-		// _, err = s.Write([]byte("ACK"))
-		// if err != nil {
-		// 	log.Printf("failed to write: %v\n", err)
-		// }
+		mutex.Unlock()
 	}
 }

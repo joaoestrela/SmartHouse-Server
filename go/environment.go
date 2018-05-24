@@ -38,6 +38,8 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 		req := "luminosity\n"
 		log.Print("sending:", req)
 
+		mutex.Lock()
+
 		_, err = s.Write([]byte(req))
 		if err != nil {
 			msg := fmt.Sprintf("failed to write: %v", err)
@@ -50,6 +52,8 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 		// Read response with newline delim
 		reader := bufio.NewReader(s)
 		val, err := reader.ReadBytes('\n')
+
+		mutex.Unlock()
 
 		if err != nil {
 			msg := fmt.Sprintf("failed to read: %v", err)
@@ -135,6 +139,8 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 		req := "temperature\n"
 		log.Print("sending:", req)
 
+		mutex.Lock()
+
 		_, err = s.Write([]byte(req))
 		if err != nil {
 			msg := fmt.Sprintf("failed to write: %v", err)
@@ -149,6 +155,8 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 
 		reader := bufio.NewReader(s)
 		val, err := reader.ReadBytes('\n')
+
+		mutex.Unlock()
 
 		if err != nil {
 			msg := fmt.Sprintf("failed to read: %v", err)
