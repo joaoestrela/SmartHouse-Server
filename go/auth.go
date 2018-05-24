@@ -92,6 +92,13 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if in.Secret != secret {
+		log.Printf("incorrect secret: %v\n", in.Secret)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Registration failed. Wrong secret."))
+		return
+	}
+
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
 		log.Printf("failed to generate uuid: %v\n", err)

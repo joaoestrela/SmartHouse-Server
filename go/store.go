@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -23,12 +22,6 @@ var db *AuthStore
 
 // NewAuthDB returns a new and initialized db
 func NewAuthDB(file string) error {
-	// Start fresh every time for now
-	err := os.RemoveAll(file)
-	if err != nil {
-		return fmt.Errorf("failed to delete existing db: %v", err)
-	}
-
 	storage, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		return fmt.Errorf("failed to open new db: %v", err)
