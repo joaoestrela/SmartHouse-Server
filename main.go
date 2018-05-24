@@ -20,6 +20,5 @@ func main() {
 
 	// Make requests for temperature
 	// Make requests for luminosity
-	// Change status of an LED
-	// Listen for changes to LEDS
+	// Make request for settings
 }

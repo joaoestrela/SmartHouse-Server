@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/tarm/serial"
 )
@@ -33,7 +35,10 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 		defer s.Close()
 
 		// Write request
-		_, err = s.Write([]byte("luminosity"))
+		req := "luminosity\n"
+		log.Print("sending:", req)
+
+		_, err = s.Write([]byte(req))
 		if err != nil {
 			msg := fmt.Sprintf("failed to write: %v", err)
 			log.Println(msg)
@@ -44,7 +49,8 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 
 		// Read response with newline delim
 		reader := bufio.NewReader(s)
-		msg, err := reader.ReadBytes('\n')
+		val, err := reader.ReadBytes('\n')
+
 		if err != nil {
 			msg := fmt.Sprintf("failed to read: %v", err)
 			log.Println(msg)
@@ -53,18 +59,19 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Printf("incoming: %s\n", string(msg))
+		parsed := strings.TrimSpace(string(val))
+		log.Println("incoming:", parsed)
 
-		// Unmarshal response into struct
-		if err := json.Unmarshal(msg, &sd); err != nil {
-			msg := fmt.Sprintf("failed to unmarshal: %v", err)
+		lum, err := strconv.ParseFloat(parsed, 32)
+		if err != nil {
+			msg := fmt.Sprintf("failed to parse: %v", err)
 			log.Println(msg)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf(`{"message": "Luminosity get failed: %s"}`, msg)))
 			return
 		}
 
-		// TODO: Verify
+		sd.Value = float32(lum)
 		sd.Unit = "Lux"
 
 	} else {
@@ -74,9 +81,15 @@ func Luminosity(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	log.Printf("Value: %f, Unit: %s\n", sd.Value, sd.Unit)
+
 	buf, err := json.Marshal(sd)
 	if err != nil {
+		msg := fmt.Sprintf("failed to marshal: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Luminosity get failed: %s"}`, msg)))
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(buf)
@@ -119,7 +132,10 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 		defer s.Close()
 
 		// Write request
-		_, err = s.Write([]byte("temperature"))
+		req := "temperature\n"
+		log.Print("sending:", req)
+
+		_, err = s.Write([]byte(req))
 		if err != nil {
 			msg := fmt.Sprintf("failed to write: %v", err)
 			log.Println(msg)
@@ -129,8 +145,11 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Try to read response
+		log.Println("reading from serial")
+
 		reader := bufio.NewReader(s)
-		msg, err := reader.ReadBytes('\n')
+		val, err := reader.ReadBytes('\n')
+
 		if err != nil {
 			msg := fmt.Sprintf("failed to read: %v", err)
 			log.Println(msg)
@@ -138,17 +157,20 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(fmt.Sprintf(`{"message": "Temperature get failed: %s"}`, msg)))
 			return
 		}
-		log.Printf("incoming: %s\n", string(msg))
 
-		if err := json.Unmarshal(msg, &sd); err != nil {
-			msg := fmt.Sprintf("failed to read: %v", err)
+		parsed := strings.TrimSpace(string(val))
+		log.Println("incoming:", parsed)
+
+		temp, err := strconv.ParseFloat(parsed, 32)
+		if err != nil {
+			msg := fmt.Sprintf("failed to parse: %v", err)
 			log.Println(msg)
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf(`{"message": "Temperature get failed: %s"}`, msg)))
 			return
 		}
 
-		// TODO: Verify
+		sd.Value = float32(temp)
 		sd.Unit = "Celcius"
 
 	} else {
@@ -160,7 +182,11 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 
 	buf, err := json.Marshal(sd)
 	if err != nil {
+		msg := fmt.Sprintf("failed to marshal: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Temperature get failed: %s"}`, msg)))
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(buf)

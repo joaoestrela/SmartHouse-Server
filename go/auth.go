@@ -86,7 +86,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	var in regInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		log.Printf("failed to decode req: %v", err)
+		log.Printf("failed to decode req: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Registration failed."))
 		return
@@ -94,7 +94,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	salt, err := uuid.GenerateUUID()
 	if err != nil {
-		log.Printf("failed to generate uuid: %v", err)
+		log.Printf("failed to generate uuid: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Registration failed."))
 		return

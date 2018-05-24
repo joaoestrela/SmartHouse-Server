@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,7 +12,7 @@ import (
 )
 
 const (
-	LIVE    = false
+	LIVE    = true
 	storage = "auth.db"
 )
 
@@ -25,10 +24,6 @@ var (
 
 type StatusResponse struct {
 	Message string `json:"message,omitempty"`
-}
-
-type Update struct {
-	Source string `json:"source,omitempty"`
 }
 
 type Route struct {
@@ -53,7 +48,7 @@ func NewServer(device string, baud int) *mux.Router {
 
 	for i := 0; i < 5; i++ {
 		l := Light{
-			ID:          i,
+			ID:          i + 1,
 			Description: rooms[i],
 			TurnOn:      false,
 		}
@@ -204,63 +199,26 @@ var routes = Routes{
 }
 
 func UpdateReceiver() {
-	s, err := serial.OpenPort(serialConf)
-	if err != nil {
-		log.Fatalf("failed to open serial port: %v", err)
-	}
-	defer s.Close()
-
 	for {
-		// Try to read
-		reader := bufio.NewReader(s)
-		msg, err := reader.ReadBytes('\n')
+		s, err := serial.OpenPort(serialConf)
 		if err != nil {
-			log.Printf("error: failed to read: %v\n", err)
-			time.Sleep(1 * time.Second) // TODO: debug
-			continue
-		}
-		log.Printf("incoming: %s\n", string(msg))
-
-		var u Update
-		if err := json.Unmarshal(msg, &u); err != nil {
-			log.Printf("error: failed to unmarshal: %v", err)
-			continue
+			log.Fatalf("failed to open serial port: %v", err)
 		}
 
-		switch u.Source {
-		case "light":
+		// Try to read
+		dec := json.NewDecoder(s)
+		for dec.More() {
 			var l Light
-			if err := json.Unmarshal(msg, &l); err != nil {
+			if err := dec.Decode(&l); err != nil {
 				log.Printf("error: failed to unmarshal: %v", err)
+				time.Sleep(1 * time.Millisecond)
 				continue
 			}
 
-			lights[l.ID].TurnOn = l.TurnOn
+			lights[l.ID-1].TurnOn = l.TurnOn
 			log.Printf("Light #%d set to: %t", l.ID, l.TurnOn)
-
-		case "settings":
-			var s Settings
-			if err := json.Unmarshal(msg, &s); err != nil {
-				log.Printf("error: failed to unmarshal: %v", err)
-				continue
-			}
-
-			// TODO: Import state into settings struct
-			settings.Automatic = s.Automatic
-			settings.Threshold = s.Threshold
-
-			log.Printf("New settings: automatic: '%t', threshold: '%f'",
-				settings.Automatic, settings.Threshold)
-
-		case "sensor":
-			var s SensorData
-			if err := json.Unmarshal(msg, &s); err != nil {
-				log.Printf("error: failed to unmarshal: %v", err)
-				continue
-			}
-
-			// TODO: Save to DB
 		}
+		s.Close()
 
 		// TODO: Make sure arduino can receive
 		// Reply if success

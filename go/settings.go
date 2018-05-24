@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/tarm/serial"
 )
 
 type Settings struct {
@@ -35,7 +37,7 @@ func SetHomeSettings(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	defer r.Body.Close()
+	r.Body.Close()
 
 	if err := json.Unmarshal(b, &settings); err != nil {
 		msg := fmt.Sprintf("failed to unmarshal settings: %v", err)
@@ -45,7 +47,51 @@ func SetHomeSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Write two commands to Arduino, one for threshold and one for automatic
+	if LIVE == true {
+		s, err := serial.OpenPort(serialConf)
+		if err != nil {
+			msg := fmt.Sprintf("failed to open port: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}\n`, msg)))
+			return
+		}
+
+		// TODO: Should this be true/false?
+		// Example Arduino commands: house_auto_ON, house_threshold_200
+		var auto string
+		if settings.Automatic {
+			auto = "house_auto_ON\n"
+		} else {
+			auto = "house_auto_OFF\n"
+		}
+
+		log.Print("Sending:", auto)
+
+		_, err = s.Write([]byte(auto))
+		if err != nil {
+			msg := fmt.Sprintf("failed to write: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}\n`, msg)))
+			return
+		}
+
+		threshold := fmt.Sprintf("house_threshold_%f\n", settings.Threshold)
+
+		log.Print("Sending:", threshold)
+
+		_, err = s.Write([]byte(threshold))
+		if err != nil {
+			msg := fmt.Sprintf("failed to write: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Light toggle failed: %s"}\n`, msg)))
+			return
+		}
+
+		s.Close()
+	}
 
 	msg := fmt.Sprintf("OK, current house settings: automatic: '%t', threshold: '%f'",
 		settings.Automatic, settings.Threshold)
