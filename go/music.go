@@ -23,19 +23,13 @@ type Track struct {
 func MusicAvailable(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	tracks := []Track{
-		Track{
-			ID:   42,
-			Name: "Rick Astley - Never Gonna Give You Up",
-		},
-		Track{
-			ID:   43,
-			Name: "Air Supply - All Out of Love",
-		},
-	}
 	buf, err := json.Marshal(tracks)
 	if err != nil {
+		msg := fmt.Sprintf("failed to marshal json: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Available failed: %s"}`, msg)))
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(buf)
@@ -46,15 +40,16 @@ func MusicSummary(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	status := MusicPlayerStatus{
-		State: true,
-		Track: Track{
-			ID:   42,
-			Name: "Rick Astley - Never Gonna Give You Up",
-		},
+		State: trackPlaying,
+		Track: activeTrack,
 	}
 	buf, err := json.Marshal(status)
 	if err != nil {
+		msg := fmt.Sprintf("failed to marshal json: %v", err)
+		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Summary failed: %s"}`, msg)))
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(buf)
@@ -78,8 +73,12 @@ func PlayTrack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	trackPlaying = true
+	activeTrack = tracks[t.ID-1]
+
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"message": "OK, playing track id: %s"}`, t.ID)))
+	w.Write([]byte(fmt.Sprintf(`{"message": "OK, playing track: %d - %s"}`,
+		activeTrack.ID, activeTrack.Name)))
 }
 
 func SetMusicState(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +87,17 @@ func SetMusicState(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	state := params["state"]
 
-	// TODO: Do something with request
+	if state == "on" {
+		trackPlaying = true
+	} else if state == "off" {
+		trackPlaying = false
+	} else {
+		msg := fmt.Sprintf("unknown music state: %v", state)
+		log.Println(msg)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Music state failed: %s"}`, msg)))
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf(`{"message": "OK, music state updated to: %s"}`, state)))

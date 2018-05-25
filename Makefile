@@ -18,5 +18,13 @@ vars:
 linux64:
 	env GOOS=linux GOARCH=amd64 go build -o $(APP) -i ../.
 
+build:
+	env GOOS=linux GOARCH=amd64 go build -o bin/$(APP)-linux -i .
+	env GOOS=darwin GOARCH=amd64 go build -o bin/$(APP)-darwin -i .
+	env GOOS=windows GOARCH=amd64 go build -o bin/gateway.exe -i .
+
+deploy:
+	env GOOS=linux GOARCH=arm GOARM=5 go build -o bin/gateway-arm -i .; scp bin/gateway-arm pi@raspberrypi.local:~/
+
 clean:
 	rm $(APP)
