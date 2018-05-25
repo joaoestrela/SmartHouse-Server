@@ -18,10 +18,15 @@ const (
 )
 
 var (
-	serialConf *serial.Config
-	lights     []Light
-	settings   Settings
-	mutex      sync.Mutex
+	serialConf   *serial.Config
+	lights       []Light
+	tracks       []Track
+	activeTrack  Track
+	trackPlaying bool
+	temperature  float32
+	luminosity   float32
+	settings     Settings
+	mutex        sync.Mutex
 )
 
 type StatusResponse struct {
@@ -62,6 +67,19 @@ func NewServer(device string, baud int) *mux.Router {
 	settings = Settings{
 		Automatic: false,
 		Threshold: 1,
+	}
+
+	// TODO: debug
+	// Init dummy songs
+	tracks = []Track{
+		Track{
+			ID:   1,
+			Name: "Rick Astley - Never Gonna Give You Up",
+		},
+		Track{
+			ID:   2,
+			Name: "Air Supply - All Out of Love",
+		},
 	}
 
 	// Launch receiver for serial updates from Arduino
