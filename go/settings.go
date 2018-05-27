@@ -11,8 +11,8 @@ import (
 )
 
 type Settings struct {
-	Automatic bool    `json:"automatic,omitempty"`
-	Threshold float32 `json:"threshold,omitempty"`
+	Automatic bool    `json:"automatic"`
+	Threshold float32 `json:"threshold"`
 }
 
 func HomeSettings(w http.ResponseWriter, r *http.Request) {

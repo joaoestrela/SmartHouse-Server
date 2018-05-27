@@ -99,10 +99,7 @@ func SetLightState(w http.ResponseWriter, r *http.Request) {
 		cmd := fmt.Sprintf("led%d_%s\n", id, state)
 		fmt.Println("sending command:", cmd)
 
-		mutex.Lock()
 		_, err = s.Write([]byte(cmd))
-		mutex.Unlock()
-
 		if err != nil {
 			msg := fmt.Sprintf("failed to write: %v", err)
 			log.Println(msg)

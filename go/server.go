@@ -3,9 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"sync"
+	"os/exec"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	LIVE    = true
+	LIVE    = false
 	storage = "auth.db"
+	music   = "/home/pi/music/"
 )
 
 var (
@@ -23,10 +25,10 @@ var (
 	tracks       []Track
 	activeTrack  Track
 	trackPlaying bool
+	mpg123       *exec.Cmd
 	temperature  float32
 	luminosity   float32
 	settings     Settings
-	mutex        sync.Mutex
 )
 
 type StatusResponse struct {
@@ -69,22 +71,67 @@ func NewServer(device string, baud int) *mux.Router {
 		Threshold: 1,
 	}
 
-	// TODO: debug
-	// Init dummy songs
-	tracks = []Track{
-		Track{
-			ID:   1,
-			Name: "Rick Astley - Never Gonna Give You Up",
-		},
-		Track{
-			ID:   2,
-			Name: "Air Supply - All Out of Love",
-		},
-	}
-
-	// Launch receiver for serial updates from Arduino
 	if LIVE {
+		// Init songs
+		files, err := ioutil.ReadDir(music)
+		if err != nil {
+			log.Fatalf("failed to read music dir: %v", err)
+		}
+
+		for i, f := range files {
+			t := Track{
+				ID:   i + 1,
+				Name: f.Name(),
+			}
+			tracks = append(tracks, t)
+		}
+
+		// Launch receiver for serial updates from Arduino
 		go UpdateReceiver()
+
+	} else {
+		tracks = []Track{
+			Track{
+				ID:   1,
+				Name: "Rick Astley - Never Gonna Give You Up",
+			},
+			Track{
+				ID:   2,
+				Name: "Rick Astley - Whenever You Need Somebody",
+			},
+			Track{
+				ID:   3,
+				Name: "Rick Astley - Together Forever",
+			},
+			Track{
+				ID:   4,
+				Name: "Rick Astley - It Would Take a Strong Strong Man",
+			},
+			Track{
+				ID:   5,
+				Name: "Rick Astley - The Love Has Gone",
+			},
+			Track{
+				ID:   6,
+				Name: "Rick Astley - Don't Say Goodbye",
+			},
+			Track{
+				ID:   7,
+				Name: "Rick Astley - Slipping Away",
+			},
+			Track{
+				ID:   8,
+				Name: "Rick Astley - No More Looking for Love",
+			},
+			Track{
+				ID:   9,
+				Name: "Rick Astley - You Move Me",
+			},
+			Track{
+				ID:   10,
+				Name: "Rick Astley - When I Fall in Love",
+			},
+		}
 	}
 
 	// Init routes
@@ -134,24 +181,10 @@ var routes = Routes{
 	},
 
 	Route{
-		"LuminosityHistory",
-		"GET",
-		"/SmartHouse/1.0.2/luminosity/history",
-		LuminosityHistory,
-	},
-
-	Route{
 		"Temperature",
 		"GET",
 		"/SmartHouse/1.0.2/temperature",
 		Temperature,
-	},
-
-	Route{
-		"TemperatureHistory",
-		"GET",
-		"/SmartHouse/1.0.2/temperature/history",
-		TemperatureHistory,
 	},
 
 	Route{
@@ -225,23 +258,19 @@ func UpdateReceiver() {
 			log.Fatalf("failed to open serial port: %v", err)
 		}
 
-		mutex.Lock()
-		{
-			// Try to read
-			dec := json.NewDecoder(s)
-			for dec.More() {
-				var l Light
-				if err := dec.Decode(&l); err != nil {
-					log.Printf("error: failed to unmarshal: %v", err)
-					time.Sleep(1 * time.Millisecond)
-					continue
-				}
-
-				lights[l.ID-1].TurnOn = l.TurnOn
-				log.Printf("Light #%d set to: %t", l.ID, l.TurnOn)
+		// Try to read
+		dec := json.NewDecoder(s)
+		for dec.More() {
+			var l Light
+			if err := dec.Decode(&l); err != nil {
+				log.Printf("error: failed to unmarshal: %v", err)
+				time.Sleep(1 * time.Millisecond)
+				continue
 			}
-			s.Close()
+
+			lights[l.ID-1].TurnOn = l.TurnOn
+			log.Printf("Light #%d set to: %t", l.ID, l.TurnOn)
 		}
-		mutex.Unlock()
+		s.Close()
 	}
 }

@@ -3,15 +3,16 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os/exec"
+	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
 type MusicPlayerStatus struct {
-	State bool `json:"state,omitempty"`
+	State bool
 	Track Track
 }
 
@@ -58,27 +59,44 @@ func MusicSummary(w http.ResponseWriter, r *http.Request) {
 func PlayTrack(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	b, err := ioutil.ReadAll(r.Body)
+	id, err := strconv.Atoi(r.URL.Query().Get("trackId"))
 	if err != nil {
-		return
-	}
-	defer r.Body.Close()
-
-	var t Track
-	if err := json.Unmarshal(b, &t); err != nil {
-		msg := fmt.Sprintf("failed to unmarshal: %v", err)
+		msg := fmt.Sprintf("failed to parse id: %v", err)
 		log.Println(msg)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf(`{"message": "Play failed: %s"}`, msg)))
 		return
 	}
 
-	trackPlaying = true
-	activeTrack = tracks[t.ID-1]
+	if LIVE {
+		mpg123 = exec.Command("mpg123", "-q", music+tracks[id-1].Name)
+		err = mpg123.Start()
+		if err != nil {
+			msg := fmt.Sprintf("failed to play: %v", err)
+			log.Println(msg)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(fmt.Sprintf(`{"message": "Play failed: %s"}`, msg)))
+			return
+		}
+	}
 
+	trackPlaying = true
+	activeTrack = tracks[id-1]
+
+	status := MusicPlayerStatus{
+		State: trackPlaying,
+		Track: activeTrack,
+	}
+	buf, err := json.Marshal(status)
+	if err != nil {
+		msg := fmt.Sprintf("failed to marshal json: %v", err)
+		log.Println(msg)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf(`{"message": "Play failed: %s"}`, msg)))
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"message": "OK, playing track: %d - %s"}`,
-		activeTrack.ID, activeTrack.Name)))
+	w.Write(buf)
 }
 
 func SetMusicState(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +105,15 @@ func SetMusicState(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	state := params["state"]
 
-	if state == "on" {
-		trackPlaying = true
-	} else if state == "off" {
+	if state == "off" {
 		trackPlaying = false
+		activeTrack = Track{}
+
+		if LIVE && mpg123 != nil {
+			mpg123.Process.Kill()
+			mpg123 = nil
+		}
+
 	} else {
 		msg := fmt.Sprintf("unknown music state: %v", state)
 		log.Println(msg)
@@ -100,5 +123,5 @@ func SetMusicState(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf(`{"message": "OK, music state updated to: %s"}`, state)))
+	w.Write([]byte(`{"message": "OK, music state updated to off"}`))
 }
