@@ -80,7 +80,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Register registers a new house member
-// TODO: Check if user is already registered
 func Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 

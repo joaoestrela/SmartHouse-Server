@@ -57,7 +57,6 @@ func SetHomeSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// TODO: Should this be true/false?
 		// Example Arduino commands: house_auto_ON, house_threshold_200
 		var auto string
 		if settings.Automatic {
