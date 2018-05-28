@@ -69,6 +69,11 @@ func PlayTrack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if LIVE {
+		if trackPlaying {
+			mpg123.Process.Kill()
+			mpg123 = nil
+		}
+
 		mpg123 = exec.Command("mpg123", "-q", music+tracks[id-1].Name)
 		err = mpg123.Start()
 		if err != nil {

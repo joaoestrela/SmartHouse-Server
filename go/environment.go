@@ -36,7 +36,7 @@ func Temperature(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	sd := SensorData{
 		Value: 27,
-		Unit:  "Celcius",
+		Unit:  "Celsius",
 	}
 
 	buf, err := json.Marshal(sd)

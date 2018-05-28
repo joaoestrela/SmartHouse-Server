@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	LIVE    = false
+	LIVE    = true
 	storage = "auth.db"
 	music   = "/home/pi/music/"
 )

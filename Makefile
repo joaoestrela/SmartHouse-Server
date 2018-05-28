@@ -24,7 +24,7 @@ build:
 	env GOOS=windows GOARCH=amd64 go build -o bin/gateway.exe -i .
 
 deploy:
-	env GOOS=linux GOARCH=arm GOARM=5 go build -o bin/gateway-arm -i .; scp bin/gateway-arm pi@raspberrypi.local:~/
+	env GOOS=linux GOARCH=arm GOARM=5 go build -o bin/gateway-arm -i .; scp bin/gateway-arm pi@192.168.10.12:~/
 
 clean:
 	rm $(APP)
